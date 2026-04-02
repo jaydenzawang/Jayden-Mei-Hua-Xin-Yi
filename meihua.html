@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jayden的梅花心易 - 可视化排盘</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: #1a1a2e;
+            color: #eaeaea;
+        }
+        
+        .gua-line {
+            width: 80px;
+            height: 12px;
+            margin: 6px auto;
+            position: relative;
+        }
+        
+        .yang-yao {
+            background: #d4af37;
+            border-radius: 2px;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+        }
+        
+        .yin-yao {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+        
+        .yin-yao::before,
+        .yin-yao::after {
+            content: '';
+            width: 35px;
+            height: 12px;
+            background: #8b4513;
+            border-radius: 2px;
+            box-shadow: 0 0 5px rgba(139, 69, 19, 0.5);
+        }
+        
+        .moving-yao {
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        .gua-card {
+            background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+            border: 1px solid #e94560;
+            border-radius: 12px;
+            padding: 20px;
+            transition: transform 0.3s;
+        }
+        
+        .gua-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .bagua-symbol {
+            font-size: 2.5rem;
+            color: #d4af37;
+            text-shadow: 0 0 20px rgba(212, 175, 55, 0.8);
+        }
+        
+        .qi-wang { color: #22c55e; font-weight: bold; }
+        .qi-xiang { color: #3b82f6; }
+        .qi-xiu { color: #a855f7; }
+        .qi-qiu { color: #f97316; }
+        .qi-si { color: #ef4444; }
+        
+        .input-group {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #e94560 0%, #c73e54 100%);
+            transition: all 0.3s;
+        }
+        
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(233, 69, 96, 0.4);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4">
+    <div class="max-w-6xl mx-auto">
+        <!-- 标题 -->
+        <header class="text-center mb-8 py-8">
+            <h1 class="text-4xl md:text-5xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500">
+                Jayden的梅花心易
+            </h1>
+            <p class="text-gray-400">可视化排盘系统</p>
+        </header>
+
+        <!-- 输入区 -->
+        <div class="input-group p-6 mb-8 max-w-2xl mx-auto">
+            <div class="flex flex-col gap-4">
+                <div class="flex gap-2 justify-center">
+                    <button onclick="setMode('time')" class="btn-primary px-6 py-2 rounded-lg font-bold" id="btn-time">
+                        时间起卦
+                    </button>
+                    <button onclick="setMode('number')" class="px-6 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition" id="btn-number">
+                        数字起卦
+                    </button>
+                    <button onclick="setMode('stroke')" class="px-6 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition" id="btn-stroke">
+                        笔画起卦
+                    </button>
+                </div>
+                
+                <div id="input-area" class="hidden">
+                    <input type="text" id="user-input" placeholder="输入数字，空格分隔 (如: 3 6 9)" 
+                           class="w-full p-3 rounded bg-gray-800 border border-gray-600 text-center text-lg">
+                </div>
+                
+                <button onclick="calculate()" class="btn-primary w-full py-3 rounded-lg font-bold text-lg">
+                    开始排盘
+                </button>
+            </div>
+        </div>
+
+        <!-- 时间信息 -->
+        <div id="time-info" class="text-center mb-6 text-gray-300 hidden">
+            <p id="solar-time" class="text-sm mb-1"></p>
+            <p id="lunar-time" class="text-lg text-yellow-400"></p>
+        </div>
+
+        <!-- 三卦展示区 -->
+        <div id="result-area" class="hidden">
+            <div class="grid md:grid-cols-3 gap-6 mb-8">
+                <!-- 本卦 -->
+                <div class="gua-card">
+                    <div class="text-center mb-4">
+                        <span class="text-red-400 font-bold text-sm">本卦</span>
+                        <h2 id="ben-name" class="text-2xl font-bold mt-1"></h2>
+                        <p id="ben-gua" class="text-gray-400 text-sm"></p>
+                    </div>
+                    <div id="ben-yaos" class="flex flex-col-reverse items-center mb-4"></div>
+                    <div class="text-center text-sm">
+                        <span id="ben-ti" class="mr-2"></span>
+                        <span id="ben-yong"></span>
+                    </div>
+                </div>
+
+                <!-- 互卦 -->
+                <div class="gua-card">
+                    <div class="text-center mb-4">
+                        <span class="text-blue-400 font-bold text-sm">互卦</span>
+                        <h2 id="hu-name" class="text-2xl font-bold mt-1"></h2>
+                        <p id="hu-gua" class="text-gray-400 text-sm"></p>
+                    </div>
+                    <div id="hu-yaos" class="flex flex-col-reverse items-center mb-4"></div>
+                </div>
+
+                <!-- 变卦 -->
+                <div class="gua-card">
+                    <div class="text-center mb-4">
+                        <span class="text-purple-400 font-bold text-sm">变卦</span>
+                        <h2 id="bian-name" class="text-2xl font-bold mt-1"></h2>
+                        <p id="bian-gua" class="text-gray-400 text-sm"></p>
+                    </div>
+                    <div id="bian-yaos" class="flex flex-col-reverse items-center mb-4"></div>
+                </div>
+            </div>
+
+            <!-- 详细信息 -->
+            <div class="gua-card max-w-4xl mx-auto">
+                <h3 class="text-xl font-bold mb-4 text-center border-b border-gray-600 pb-2">卦气分析</h3>
+                <div class="grid md:grid-cols-2 gap-4 text-sm" id="qi-analysis"></div>
+                <div class="mt-4 pt-4 border-t border-gray-600 text-center">
+                    <p class="text-yellow-400">动爻：第 <span id="moving-yao" class="text-2xl font-bold"></span> 爻</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 数据定义（复刻 Python 逻辑）
+        const BAGUA = {
+            1: {name: '乾', element: '金', yaos: [1,1,1], symbol: '☰'},
+            2: {name: '兑', element: '金', yaos: [1,1,0], symbol: '☱'},
+            3: {name: '离', element: '火', yaos: [1,0,1], symbol: '☲'},
+            4: {name: '震', element: '木', yaos: [1,0,0], symbol: '☳'},
+            5: {name: '巽', element: '木', yaos: [0,1,1], symbol: '☴'},
+            6: {name: '坎', element: '水', yaos: [0,1,0], symbol: '☵'},
+            7: {name: '艮', element: '土', yaos: [0,0,1], symbol: '☶'},
+            8: {name: '坤', element: '土', yaos: [0,0,0], symbol: '☷'}
+        };
+
+        const HEXAGRAMS = {
+            '1,1': '乾为天', '1,2': '天泽履', '1,3': '天火同人', '1,4': '天雷无妄',
+            '1,5': '天风姤', '1,6': '天水讼', '1,7': '天山遁', '1,8': '天地否',
+            '2,1': '泽天夬', '2,2': '兑为泽', '2,3': '泽火革', '2,4': '泽雷随',
+            '2,5': '泽风大过', '2,6': '泽水困', '2,7': '泽山咸', '2,8': '泽地萃',
+            '3,1': '火天大有', '3,2': '火泽睽', '3,3': '离为火', '3,4': '火雷噬嗑',
+            '3,5': '风火鼎', '3,6': '火水未济', '3,7': '火山旅', '3,8': '火地晋',
+            '4,1': '雷天大壮', '4,2': '雷泽归妹', '4,3': '雷火丰', '4,4': '震为雷',
+            '4,5': '雷风恒', '4,6': '雷水解', '4,7': '雷山小过', '4,8': '雷地豫',
+            '5,1': '风天小畜', '5,2': '风泽中孚', '5,3': '风火家人', '5,4': '风雷益',
+            '5,5': '巽为风', '5,6': '风水涣', '5,7': '风山渐', '5,8': '风地观',
+            '6,1': '水天需', '6,2': '水泽节', '6,3': '水火既济', '6,4': '水雷屯',
+            '6,5': '水风井', '6,6': '坎为水', '6,7': '水山蹇', '6,8': '水地比',
+            '7,1': '山天大畜', '7,2': '山泽损', '7,3': '山火贲', '7,4': '山雷颐',
+            '7,5': '山风蛊', '7,6': '山水蒙', '7,7': '艮为山', '7,8': '山地剥',
+            '8,1': '地天泰', '8,2': '地泽临', '8,3': '地火明夷', '8,4': '地雷复',
+            '8,5': '地风升', '8,6': '地水师', '8,7': '地山谦', '8,8': '坤为地'
+        };
+
+        const BRANCHES = ['', '子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+        
+        let currentMode = 'time';
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('button[id^="btn-"]').forEach(btn => {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('bg-gray-700');
+            });
+            document.getElementById(`btn-${mode}`).classList.remove('bg-gray-700');
+            document.getElementById(`btn-${mode}`).classList.add('btn-primary');
+            
+            const inputArea = document.getElementById('input-area');
+            const input = document.getElementById('user-input');
+            
+            if (mode === 'time') {
+                inputArea.classList.add('hidden');
+            } else {
+                inputArea.classList.remove('hidden');
+                input.placeholder = mode === 'number' ? 
+                    '输入数字，空格分隔 (如: 3 6 9)' : 
+                    '输入笔画数，空格分隔 (如: 12 5 8)';
+            }
+        }
+
+        // 农历转换简化版
+        function getLunarDate(date) {
+            // 这里使用简化算法，实际应用建议引入 lunar-javascript 库
+            const lunarInfo = [
+                0x04bd8, 0x04ae0, 0x0a570, 0x054d5, 0x0d260, 0x0d950, 0x16554, 0x056a0, 0x09ad0, 0x055d2,
+                0x04ae0, 0x0a5b6, 0x0a4d0, 0x0d250, 0x1d255, 0x0b540, 0x0d6a0, 0x0ada2, 0x095b0, 0x14977
+            ];
+            
+            let year = date.getFullYear();
+            let month = date.getMonth() + 1;
+            let day = date.getDate();
+            
+            // 简化计算，实际需完整农历库
+            let lunarYear = year;
+            let lunarMonth = month;
+            let lunarDay = day;
+            
+            // 地支年计算
+            let yearIdx = (lunarYear - 3) % 12;
+            if (yearIdx === 0) yearIdx = 12;
+            
+            // 时辰计算
+            let hour = date.getHours();
+            let hourIdx = Math.floor(((hour + 1) % 24) / 2) + 1;
+            
+            return {
+                year: lunarYear,
+                month: lunarMonth,
+                day: lunarDay,
+                yearIdx: yearIdx,
+                hourIdx: hourIdx,
+                toString: function() {
+                    return `农历 ${BRANCHES[this.yearIdx]}年 ${this.month}月 ${this.day}日 ${BRANCHES[this.hourIdx]}时`;
+                }
+            };
+        }
+
+        function getMod(val, base) {
+            let res = val % base;
+            return res === 0 ? base : res;
+        }
+
+        function yaosToGua(yaos) {
+            for (let idx in BAGUA) {
+                if (JSON.stringify(BAGUA[idx].yaos) === JSON.stringify(yaos)) {
+                    return parseInt(idx);
+                }
+            }
+            return null;
+        }
+
+        function calculateHexagrams(upperIdx, lowerIdx, movingYao) {
+            const benYaos = [...BAGUA[lowerIdx].yaos, ...BAGUA[upperIdx].yaos];
+            const huLowerIdx = yaosToGua(benYaos.slice(1, 4));
+            const huUpperIdx = yaosToGua(benYaos.slice(2, 5));
+            
+            const bianYaos = [...benYaos];
+            bianYaos[movingYao - 1] = 1 - bianYaos[movingYao - 1];
+            const bianLowerIdx = yaosToGua(bianYaos.slice(0, 3));
+            const bianUpperIdx = yaosToGua(bianYaos.slice(3, 6));
+            
+            return {
+                ben: [upperIdx, lowerIdx],
+                hu: [huUpperIdx, huLowerIdx],
+                bian: [bianUpperIdx, bianLowerIdx],
+                movingYao: movingYao,
+                benYaos: benYaos
+            };
+        }
+
+        function getGuaQi(element, month) {
+            let seasonEle;
+            if (month <= 3) seasonEle = '木';
+            else if (month <= 6) seasonEle = '火';
+            else if (month <= 9) seasonEle = '金';
+            else seasonEle = '水';
+            
+            const relations = {
+                '木': {'木': '旺', '火': '相', '水': '休', '金': '囚', '土': '死'},
+                '火': {'火': '旺', '土': '相', '木': '休', '水': '囚', '金': '死'},
+                '金': {'金': '旺', '水': '相', '土': '休', '火': '囚', '木': '死'},
+                '水': {'水': '旺', '木': '相', '金': '休', '土': '囚', '火': '死'},
+                '土': {'土': '旺', '金': '相', '火': '休', '木': '囚', '水': '死'}
+            };
+            
+            return relations[seasonEle][element] || '未知';
+        }
+
+        function getQiClass(qi) {
+            const map = {'旺': 'qi-wang', '相': 'qi-xiang', '休': 'qi-xiu', '囚': 'qi-qiu', '死': 'qi-si'};
+            return map[qi] || '';
+        }
+
+        function renderYaos(containerId, yaos, movingYao, isBen) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            for (let i = 5; i >= 0; i--) {
+                const div = document.createElement('div');
+                div.className = 'gua-line';
+                
+                const isMoving = isBen && (6 - i === movingYao);
+                
+                if (yaos[i] === 1) {
+                    div.className += ' yang-yao';
+                } else {
+                    div.className += ' yin-yao';
+                }
+                
+                if (isMoving) {
+                    div.classList.add('moving-yao');
+                    div.style.boxShadow = '0 0 20px #e94560';
+                }
+                
+                container.appendChild(div);
+            }
+        }
+
+        function calculate() {
+            const now = new Date();
+            const lunar = getLunarDate(now);
+            
+            let upperSum, lowerSum, totalSum, modeName, inputDisplay;
+            
+            if (currentMode === 'time') {
+                modeName = '时间起卦';
+                inputDisplay = '当前时间';
+                upperSum = lunar.yearIdx + lunar.month + lunar.day;
+                lowerSum = upperSum + lunar.hourIdx;
+                totalSum = lowerSum;
+            } else {
+                const input = document.getElementById('user-input').value.trim();
+                const nums = input.split(/[ ,，]+/).map(x => parseInt(x)).filter(x => !isNaN(x));
+                
+                if (nums.length < 2) {
+                    alert('请至少输入2个数字');
+                    return;
+                }
+                
+                modeName = currentMode === 'number' ? '数字起卦' : '笔画起卦';
+                inputDisplay = nums.join(' ');
+                
+                const mid = Math.floor(nums.length / 2);
+                upperSum = nums.slice(0, mid).reduce((a, b) => a + b, 0);
+                lowerSum = nums.slice(mid).reduce((a, b) => a + b, 0);
+                totalSum = nums.reduce((a, b) => a + b, 0) + lunar.hourIdx;
+            }
+            
+            const upperIdx = getMod(upperSum, 8);
+            const lowerIdx = getMod(lowerSum, 8);
+            const movingYao = getMod(totalSum, 6);
+            
+            const result = calculateHexagrams(upperIdx, lowerIdx, movingYao);
+            
+            // 显示时间信息
+            document.getElementById('time-info').classList.remove('hidden');
+            document.getElementById('solar-time').textContent = 
+                `公历：${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ` +
+                `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+            document.getElementById('lunar-time').textContent = lunar.toString();
+            
+            // 本卦
+            const ben = result.ben;
+            document.getElementById('ben-name').textContent = HEXAGRAMS[`${ben[0]},${ben[1]}`];
+            document.getElementById('ben-gua').textContent = `上${BAGUA[ben[0]].name}下${BAGUA[ben[1]].name}`;
+            renderYaos('ben-yaos', result.benYaos, movingYao, true);
+            
+            // 体用判断
+            const tiIdx = movingYao > 3 ? lowerIdx : upperIdx;
+            const yongIdx = movingYao > 3 ? upperIdx : lowerIdx;
+            const tiPos = movingYao > 3 ? '下卦' : '上卦';
+            const yongPos = movingYao > 3 ? '上卦' : '下卦';
+            
+            document.getElementById('ben-ti').innerHTML = 
+                `体：<span class="text-yellow-400">${BAGUA[tiIdx].name}(${BAGUA[tiIdx].element})</span> 居${tiPos}`;
+            document.getElementById('ben-yong').innerHTML = 
+                `用：<span class="text-blue-400">${BAGUA[yongIdx].name}(${BAGUA[yongIdx].element})</span> 居${yongPos}`;
+            
+            // 互卦
+            const hu = result.hu;
+            const huYaos = [...BAGUA[hu[1]].yaos, ...BAGUA[hu[0]].yaos];
+            document.getElementById('hu-name').textContent = HEXAGRAMS[`${hu[0]},${hu[1]}`];
+            document.getElementById('hu-gua').textContent = `上${BAGUA[hu[0]].name}下${BAGUA[hu[1]].name}`;
+            renderYaos('hu-yaos', huYaos, 0, false);
+            
+            // 变卦
+            const bian = result.bian;
+            const bianYaos = [...BAGUA[bian[1]].yaos, ...BAGUA[bian[0]].yaos];
+            document.getElementById('bian-name').textContent = HEXAGRAMS[`${bian[0]},${bian[1]}`];
+            document.getElementById('bian-gua').textContent = `上${BAGUA[bian[0]].name}下${BAGUA[bian[1]].name}`;
+            renderYaos('bian-yaos', bianYaos, 0, false);
+            
+            // 卦气分析
+            const tiQi = getGuaQi(BAGUA[tiIdx].element, lunar.month);
+            const yongQi = getGuaQi(BAGUA[yongIdx].element, lunar.month);
+            
+            let qiHtml = `
+                <div class="p-3 bg-gray-800 rounded">
+                    <p class="mb-2"><strong>本卦卦气</strong>（农历${lunar.month}月）</p>
+                    <p>体卦 ${BAGUA[tiIdx].name}(${BAGUA[tiIdx].element})：<span class="${getQiClass(tiQi)}">${tiQi}</span></p>
+                    <p>用卦 ${BAGUA[yongIdx].name}(${BAGUA[yongIdx].element})：<span class="${getQiClass(yongQi)}">${yongQi}</span></p>
+                </div>
+                <div class="p-3 bg-gray-800 rounded">
+                    <p class="mb-2"><strong>互卦卦气</strong></p>
+                    <p>上卦 ${BAGUA[hu[0]].name}(${BAGUA[hu[0]].element})：<span class="${getQiClass(getGuaQi(BAGUA[hu[0]].element, lunar.month))}">${getGuaQi(BAGUA[hu[0]].element, lunar.month)}</span></p>
+                    <p>下卦 ${BAGUA[hu[1]].name}(${BAGUA[hu[1]].element})：<span class="${getQiClass(getGuaQi(BAGUA[hu[1]].element, lunar.month))}">${getGuaQi(BAGUA[hu[1]].element, lunar.month)}</span></p>
+                </div>
+                <div class="p-3 bg-gray-800 rounded md:col-span-2">
+                    <p class="mb-2"><strong>变卦卦气</strong></p>
+                    <p>上卦 ${BAGUA[bian[0]].name}(${BAGUA[bian[0]].element})：<span class="${getQiClass(getGuaQi(BAGUA[bian[0]].element, lunar.month))}">${getGuaQi(BAGUA[bian[0]].element, lunar.month)}</span></p>
+                    <p>下卦 ${BAGUA[bian[1]].name}(${BAGUA[bian[1]].element})：<span class="${getQiClass(getGuaQi(BAGUA[bian[1]].element, lunar.month))}">${getGuaQi(BAGUA[bian[1]].element, lunar.month)}</span></p>
+                </div>
+            `;
+            
+            document.getElementById('qi-analysis').innerHTML = qiHtml;
+            document.getElementById('moving-yao').textContent = movingYao;
+            
+            // 显示结果区
+            document.getElementById('result-area').classList.remove('hidden');
+            
+            // 滚动到结果
+            document.getElementById('result-area').scrollIntoView({behavior: 'smooth'});
+        }
+    </script>
+</body>
+</html>
