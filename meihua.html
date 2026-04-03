@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>梅花易数 · 排盘计算器</title>
+    <title>梅花易数 · 起卦计算器</title>
     <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -422,13 +422,47 @@
             padding: 24px;
             margin-top: 24px;
         }
-        .text-result-title {
-            font-size: 16px;
-            font-weight: 600;
+        .text-result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
             margin-bottom: 16px;
             padding-bottom: 12px;
             border-bottom: 1px solid var(--border-color);
+        }
+        .text-result-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
             color: var(--text-primary);
+        }
+        .copy-text-btn {
+            padding: 8px 16px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+            white-space: nowrap;
+            font-family: inherit;
+        }
+        .copy-text-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-color: var(--text-muted);
+        }
+        .copy-text-btn:active {
+            transform: scale(0.98);
+        }
+        .copy-text-btn.copied {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+            background: rgba(13, 101, 45, 0.06);
         }
         .text-result-content {
             background: var(--bg-primary);
@@ -485,8 +519,8 @@
 <body>
     <div class="container">
         <header class="header">
-            <h1>梅花易数 · 排盘计算器</h1>
-            <p>基于 Jayden 的 Python 算法实现 | 自用</p>
+            <h1>梅花易数 · 起卦</h1>
+            <p>Jayden 的 自用梅花起卦 ｜ 荀子曰：善为《易》者不占</p>
         </header>
 
         <section class="input-section">
@@ -500,8 +534,8 @@
                 <input type="text" 
                        id="inputField" 
                        class="input-field" 
-                       placeholder="直接点击计算按钮使用当前时间起卦...">
-                <button class="calc-btn" onclick="calculate()">开始排盘</button>
+                       placeholder="直接点击右侧开始起卦，使用当前时间起卦...">
+                <button class="calc-btn" onclick="calculate()">开始起卦</button>
             </div>
 
             <div class="hint-text" id="hintText">
@@ -564,7 +598,10 @@
 
             <!-- 新增：纯文字结果区域 -->
             <div class="text-result-section">
-                <div class="text-result-title">📄 文本结果（可复制用于AI分析）</div>
+                <div class="text-result-header">
+                    <div class="text-result-title">📄 文本结果（可复制用于AI分析）</div>
+                    <button type="button" class="copy-text-btn" id="copyTextResultBtn" onclick="copyTextResult()">复制文本</button>
+                </div>
                 <div class="text-result-content" id="textResultContent">
                     <!-- 纯文本结果将由JS填充 -->
                 </div>
@@ -572,7 +609,7 @@
         </section>
 
         <footer class="footer">
-            <p>算法完全复现 meihua.py 逻辑 | 使用 lunar-javascript 进行农历转换</p>
+            <p>使用 lunar-javascript 进行农历转换</p>
         </footer>
     </div>
 
@@ -723,14 +760,14 @@
             const hintText = document.getElementById('hintText');
 
             if (mode === 'time') {
-                inputField.placeholder = '直接点击计算按钮使用当前时间起卦...';
+                inputField.placeholder = '直接点击右侧开始起卦，使用当前时间起卦...';
                 inputField.value = '';
                 hintText.textContent = '时间起卦：使用当前农历年月日时起卦';
             } else if (mode === 'number') {
-                inputField.placeholder = '输入数字，如: 3 6 9 或 12 37 18';
+                inputField.placeholder = '输入数字，空格分隔';
                 hintText.textContent = '数字起卦：前半部分为上卦，后半部分为下卦，总和加时辰取动爻';
             } else if (mode === 'stroke') {
-                inputField.placeholder = '输入笔画数，如: 12 3 9 或 15 7';
+                inputField.placeholder = '输入笔画数，空格分隔';
                 hintText.textContent = '笔画起卦：输入汉字笔画数进行起卦';
             }
 
@@ -790,8 +827,8 @@
             const bianUpGua = BAGUA[bianUp];
             const bianDownGua = BAGUA[bianDown];
 
-            let text = `【梅花易数排盘结果】\n`;
-            text += `排盘时间: ${timeInfo.solarStr}\n`;
+            let text = `【梅花易数起卦结果】\n`;
+            text += `起卦时间: ${timeInfo.solarStr}\n`;
             text += `农历时间: ${timeInfo.lunarStr}\n`;
             text += `起卦方式: ${modeName} (${inputDisplay})\n`;
             text += `==============================\n`;
@@ -810,7 +847,9 @@
             text += `==============================\n`;
             text += `* 卦气说明: 旺、相、休、囚、死\n`;
             text += `* 爻位说明: 1爻为初爻（最下），6爻为上爻（最上）\n`;
-            text += `* 本工具基于 meihua.py 算法实现`;
+            text += `==============================\n`;
+            text += `\n`;
+            text += `基于上面的梅花易数起卦结果，请分析我下面的问题：\n`;
 
             return text;
         }
@@ -830,7 +869,7 @@
                     <span class="time-value">${timeInfo.solarStr}</span>
                 </div>
                 <div class="time-item">
-                    <span class="time-label">农历排盘</span>
+                    <span class="time-label">农历起卦</span>
                     <span class="time-value">${timeInfo.lunarStr}</span>
                 </div>
                 <div class="time-item">
@@ -1020,7 +1059,48 @@
                 document.getElementById('errorMsg').classList.remove('visible');
 
             } catch (e) {
-                showError(e.message || '排盘失败，请检查输入格式');
+                showError(e.message || '起卦失败，请检查输入格式');
+            }
+        }
+
+        async function copyTextResult() {
+            const el = document.getElementById('textResultContent');
+            const btn = document.getElementById('copyTextResultBtn');
+            const text = el.textContent || '';
+            if (!text.trim()) return;
+
+            const setCopiedState = (ok) => {
+                const label = ok ? '已复制' : '复制失败';
+                btn.textContent = label;
+                btn.classList.toggle('copied', ok);
+                clearTimeout(btn._copyResetTimer);
+                btn._copyResetTimer = setTimeout(() => {
+                    btn.textContent = '复制全文';
+                    btn.classList.remove('copied');
+                }, 2000);
+            };
+
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(text);
+                    setCopiedState(true);
+                    return;
+                }
+            } catch (_) { /* fallback below */ }
+
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.setAttribute('readonly', '');
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                const ok = document.execCommand('copy');
+                document.body.removeChild(ta);
+                setCopiedState(ok);
+            } catch (_) {
+                setCopiedState(false);
             }
         }
 
